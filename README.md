@@ -1,7 +1,6 @@
 bitstarter
 ==========
 
-* Bitstarter built from Node JS Sample Repository
 
 This repository is forked from the sample Node JS Sample Repository at 
 https://github.com/heroku/node-js-sample.git for the Coursera Stanford Startup Engineering class
