@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 /*
+  $ ./grader.js --checks checks.json --file index.html 
+  
   Automatically grade files for the presence of specified HTML tags/attributes.
   Uses commander.js and cheerio. Teaches command line application development
   and basic DOM parsing.
@@ -24,8 +26,16 @@
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var rest = require('restler');
+var sys = require('util');
 var HTMLFILE_DEFAULT = "index.html";
+var URL_DEFAULT = "http://www.example.com";
 var CHECKSFILE_DEFAULT = "checks.json";
+
+var assertUrlExists = function(url) {
+    var instr = url.toString();
+    return instr;
+};
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -55,6 +65,41 @@ var checkHtmlFile = function(htmlfile, checksfile) {
     return out;
 };
 
+var getUrl = function(url) {
+    console.log("getUrl:"+url+"\n");
+    rest.get(url).on('complete', function(result) {
+	console.log("in rest!!\n");
+	if (result instanceof Error) {
+	    sys.puts('Error: ' + result.message);
+	    this.retry(5000); // try again after 5 sec
+	} else {
+	    // fs.writeFile("./url.txt", result);
+	    fs.writeFile("/tmp/url.txt", result, function(err) {
+		if(err) {
+		    console.log(err);
+		} else {
+		    console.log("The file was saved!");
+		}
+	    }); 
+	    // sys.puts(result);
+	    return result;
+	}
+    });
+};
+
+var checkUrl = function(url, checksfile) {
+    data = getUrl(url);
+    console.log("RESULT:"+data);
+    $ = cheerioHtmlFile("./url.txt");
+    var checks = loadChecks(checksfile).sort();
+    var out = {};
+    for(var ii in checks) {
+        var present = $(checks[ii]).length > 0;
+        out[checks[ii]] = present;
+    }
+    return out;
+};
+
 var clone = function(fn) {
     // Workaround for commander.js issue.
     // http://stackoverflow.com/a/6772648
@@ -65,8 +110,15 @@ if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+        .option('-u, --url <url>', 'Remote site URL', clone(assertUrlExists), URL_DEFAULT)
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
+    if (program.url != URL_DEFAULT) {
+	var checkJson = checkUrl(program.url, program.checks);
+	// console.log("NONDEFAULT:"+program.url); // dw
+    } else {
+	var checkJson = checkHtmlFile(program.file, program.checks);
+	// console.log("DEFAULT:"+program.url); // dw
+    };
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
 } else {
